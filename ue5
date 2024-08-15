@@ -1,0 +1,64 @@
+#!/bin/bash
+
+CONTAINER_NAME="ue5"
+DOCKER_FOLDER="/home/kuceral4/ue5/unreal_docker"
+
+build_image() {
+  docker build \
+    --build-arg DOCKER_USER=$(whoami) \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g) \
+    -t $CONTAINER_NAME \
+    $DOCKER_FOLDER
+}
+
+run_container() {
+  docker run \
+    --tty \
+    --detach \
+    --name ue5 \
+    --gpus all \
+    --network host \
+    --env DISPLAY=:1 \
+    --env UID=$(id -u) \
+    --env GID=$(id -g) \
+    --hostname ue5-docker \
+    --publish 8000:8000 \
+    --publish 4000:4000 \
+    --security-opt seccomp=unconfined \
+    --volume "/snap:/snap:rw" \
+    --volume "/local:/local:rw" \
+    --volume "/home/kuceral4:/home/kuceral4:rw" \
+    --volume "/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    $CONTAINER_NAME sleep infinity
+}
+
+attach_container() {
+  docker exec -it $CONTAINER_NAME /bin/bash
+}
+
+# Function to handle the command-line arguments
+main() {
+  while [[ "$#" -gt 0 ]]; do
+    case $1 in
+    -b | --build)
+      build_image
+      shift
+      ;;
+    -r | --run)
+      run_container
+      shift
+      ;;
+    -a | --attach)
+      attach_container
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [-b|--build] [-r|--run] [-a|--attach]"
+      exit 1
+      ;;
+    esac
+  done
+}
+
+main "$@"
